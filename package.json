@@ -1,0 +1,30 @@
+{
+  "name": "simple-music-lyric-service",
+  "version": "1.0.0",
+  "description": "A lightweight lyric service based on NeteaseCloudMusicApi and Lrclib",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "keywords": [
+    "lyric",
+    "netease",
+    "cloudmusic",
+    "api",
+    "lrclib"
+  ],
+  "main": "app.js",
+  "engines": {
+    "node": ">=12"
+  },
+  "author": "Binaryify (Modified for lyric-only service)",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.2.2",
+    "express": "^4.17.1",
+    "pac-proxy-agent": "^7.0.0",
+    "tunnel": "^0.0.6",
+    "opencc-js": "^1.0.5"
+  },
+  "devDependencies": {
+  }
+}
