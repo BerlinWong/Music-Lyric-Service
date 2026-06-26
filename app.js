@@ -11,6 +11,21 @@ const PORT = process.env.PORT || 3000
 // Initialize converter (Traditional to Simplified)
 const converter = OpenCC.Converter({ from: 'hk', to: 'cn' })
 
+// Append a subtle attribution line after the last lyric timestamp.
+// The credit appears 3 seconds after the final lyric line so it only
+// shows up quietly at the very end of the song.
+function appendAttribution(syncedLyrics) {
+    const matches = [...syncedLyrics.matchAll(/\[(\d+):(\d+(?:\.\d+)?)\]/g)]
+    let lastMs = 0
+    if (matches.length > 0) {
+        const last = matches[matches.length - 1]
+        lastMs = Math.round((parseInt(last[1]) * 60 + parseFloat(last[2])) * 1000) + 3000
+    }
+    const min = String(Math.floor(lastMs / 60000)).padStart(2, '0')
+    const sec = ((lastMs % 60000) / 1000).toFixed(2).padStart(5, '0')
+    return syncedLyrics.trimEnd() + `\n[${min}:${sec}] Powered by Berlin\n`
+}
+
 function isJunkLyric(lrc) {
     if (!lrc) return true
     
@@ -130,7 +145,7 @@ async function getNeteaseLyrics(artist_name, track_name, album_name, duration) {
 
         // Ensure syncedLyrics ends with \n so the Swift client's .dropLast()
         // removes the trailing empty element rather than the last real lyric line.
-        const syncedLrc = lrc.endsWith('\n') ? lrc : lrc + '\n'
+        const syncedLrc = appendAttribution(lrc.endsWith('\n') ? lrc : lrc + '\n')
         return {
             id: bestMatch.id,
             name: bestMatch.name,
@@ -176,7 +191,7 @@ async function getLrclibLyrics(artist_name, track_name, album_name, duration) {
             const rawSynced = converter(data.syncedLyrics || '')
             // Ensure syncedLyrics ends with \n so the Swift client's .dropLast()
             // removes the trailing empty element rather than the last real lyric line.
-            const syncedLyrics = rawSynced.endsWith('\n') ? rawSynced : rawSynced + '\n'
+            const syncedLyrics = appendAttribution(rawSynced.endsWith('\n') ? rawSynced : rawSynced + '\n')
 
             return {
                 id: data.id,
@@ -231,7 +246,7 @@ app.get('/api/get', async (req, res) => {
                 plainLyrics: 'Lyrics not found on Netease or Lrclib',
                 // Trailing \n is required: Swift's .dropLast() expects the last element
                 // after splitting by \n to be an empty string, not the actual lyric line.
-                syncedLyrics: '[00:00.00] Lyrics not found on Netease or Lrclib\n',
+                syncedLyrics: appendAttribution('[00:00.00] Lyrics not found on Netease or Lrclib\n'),
                 lyricsfile: null
             })
         }
