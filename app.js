@@ -128,6 +128,9 @@ async function getNeteaseLyrics(artist_name, track_name, album_name, duration) {
             return null
         }
 
+        // Ensure syncedLyrics ends with \n so the Swift client's .dropLast()
+        // removes the trailing empty element rather than the last real lyric line.
+        const syncedLrc = lrc.endsWith('\n') ? lrc : lrc + '\n'
         return {
             id: bestMatch.id,
             name: bestMatch.name,
@@ -136,8 +139,9 @@ async function getNeteaseLyrics(artist_name, track_name, album_name, duration) {
             albumName: bestMatch.al ? bestMatch.al.name : '',
             duration: Math.round(bestMatch.dt / 1000),
             instrumental: false,
-            plainLyrics: lrc.replace(/\[.*?\]/g, ''),
-            syncedLyrics: lrc
+            plainLyrics: lrc.replace(/\[.*?\]/g, '').trim(),
+            syncedLyrics: syncedLrc,
+            lyricsfile: null
         }
     } catch (error) {
         console.log(`[NCM] Error during fetch: ${error.message}`)
@@ -169,7 +173,10 @@ async function getLrclibLyrics(artist_name, track_name, album_name, duration) {
 
             // Convert lyrics to Simplified Chinese
             const plainLyrics = converter(data.plainLyrics || '')
-            const syncedLyrics = converter(data.syncedLyrics || '')
+            const rawSynced = converter(data.syncedLyrics || '')
+            // Ensure syncedLyrics ends with \n so the Swift client's .dropLast()
+            // removes the trailing empty element rather than the last real lyric line.
+            const syncedLyrics = rawSynced.endsWith('\n') ? rawSynced : rawSynced + '\n'
 
             return {
                 id: data.id,
@@ -178,9 +185,12 @@ async function getLrclibLyrics(artist_name, track_name, album_name, duration) {
                 artistName: data.artistName,
                 albumName: data.albumName,
                 duration: Math.round(data.duration),
-                instrumental: data.instrumental,
+                // Lrclib may return null for non-instrumental tracks; default to false
+                // so Swift's non-optional Bool decoder doesn't throw.
+                instrumental: data.instrumental === true,
                 plainLyrics: plainLyrics,
-                syncedLyrics: syncedLyrics
+                syncedLyrics: syncedLyrics,
+                lyricsfile: null
             }
         }, 1) // Retry once
 
@@ -219,7 +229,10 @@ app.get('/api/get', async (req, res) => {
                 duration: duration ? parseInt(duration) : 0,
                 instrumental: false,
                 plainLyrics: 'Lyrics not found on Netease or Lrclib',
-                syncedLyrics: '[00:00.00] Lyrics not found on Netease or Lrclib'
+                // Trailing \n is required: Swift's .dropLast() expects the last element
+                // after splitting by \n to be an empty string, not the actual lyric line.
+                syncedLyrics: '[00:00.00] Lyrics not found on Netease or Lrclib\n',
+                lyricsfile: null
             })
         }
 
